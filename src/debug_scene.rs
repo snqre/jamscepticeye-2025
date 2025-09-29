@@ -1,4 +1,5 @@
 use ::bevy::prelude::*;
+use bevy::pbr::NotShadowCaster;
 
 const TILE_DIAMETER: f32 = 1.0;
 const TILING_RADIUS: isize = 4;
@@ -31,7 +32,8 @@ fn checker_spawn(
             commands.spawn((
                 Transform::from_xyz(x, y, TILE_Z),
                 Mesh3d(tile_mesh.clone()),
-                MeshMaterial3d(mat)
+                MeshMaterial3d(mat),
+                NotShadowCaster
             ));
         }
     }
