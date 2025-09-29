@@ -1,0 +1,6 @@
+package.name = "jamscepticeye-2025"
+package.version = "0.1.0"
+package.edition = "2024"
+dependencies.modwire.version = "*"
+dependencies.thiserror.version = "*"
+dependencies.bevy = "0.13"
