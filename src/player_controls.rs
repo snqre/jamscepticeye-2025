@@ -4,7 +4,7 @@ use crate::camera_module::POVCameraFollower;
 
 pub const PLAYER_SPEED: f32 = 4.0;
 pub const PLAYER_DEFAULT_POS: Vec3 = Vec3::new(0.0, 0.0, PLAYER_Z);
-pub const PLAYER_Z: f32 = 0.0;
+pub const PLAYER_Z: f32 = 0.5;
 
 const SPAWN_PLAYER: bool = true;
 const PLAYER_RADIUS: f32 = 0.5;

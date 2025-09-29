@@ -6,7 +6,7 @@ use bevy::transform::systems::propagate_parent_transforms;
 
 pub const VIEW_WIDTH: f32 = 10.0;
 pub const CAMERA_Z_OFFSET: f32 = 0.5;
-const TRACKING: f32 = 2.0;
+const TRACKING: f32 = 4.0;  // MORE IS FASTER
 const CAMERA_RELATIVE: Vec3 = Vec3::new(0.0, 0.0, VIEW_WIDTH);
 
 #[derive(Component, Default, Copy, Clone)]
