@@ -13,7 +13,7 @@ pub struct PlayerControlsPlugin;
 impl Plugin for PlayerControlsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, player_setup);
-        app.add_systems(FixedPreUpdate, player_movement);
+        app.add_systems(PreUpdate, player_movement);
     }
 }
 
