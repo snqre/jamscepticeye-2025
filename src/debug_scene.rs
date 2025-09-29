@@ -1,5 +1,4 @@
 use ::bevy::prelude::*;
-use std::f32::consts::FRAC_PI_2;
 
 const TILE_DIAMETER: f32 = 1.0;
 const TILING_RADIUS: isize = 4;
