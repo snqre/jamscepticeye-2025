@@ -6,7 +6,7 @@ pub const PLAYER_SPEED: f32 = 4.0;
 pub const PLAYER_DEFAULT_POS: Vec3 = Vec3::new(0.0, 0.0, PLAYER_Z);
 pub const PLAYER_Z: f32 = 0.5;
 
-const SPAWN_PLAYER: bool = true;
+const SPAWN_PLAYER: bool = true;  // this specifies if the player-test-sphere is spawned
 const PLAYER_RADIUS: f32 = 0.5;
 
 #[derive(Component)]

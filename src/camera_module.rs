@@ -4,10 +4,9 @@ use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::render::camera::ScalingMode;
 use bevy::transform::systems::propagate_parent_transforms;
 
-pub const VIEW_WIDTH: f32 = 10.0;
-pub const CAMERA_Z_OFFSET: f32 = 0.5;
+pub const VIEW_WIDTH: f32 = 10.0;  // this controls the width of the screen (in world-units)
 const TRACKING: f32 = 4.0;  // MORE IS FASTER
-const CAMERA_RELATIVE: Vec3 = Vec3::new(0.0, 0.0, VIEW_WIDTH);
+const CAMERA_RELATIVE: Vec3 = Vec3::new(0.0, 0.0, VIEW_WIDTH);  // where the camera is relative to it's look-at spot
 
 #[derive(Component, Default, Copy, Clone)]
 #[require(CameraCommonComponent)]
@@ -67,7 +66,7 @@ fn spawn_camera(
             }
         ),
         Transform::from_translation(CAMERA_RELATIVE)
-            .looking_at(Vec3::new(0.0, 0.0, CAMERA_Z_OFFSET), Vec3::Y),
+            .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
         Bloom::OLD_SCHOOL,
         Tonemapping::AcesFitted,
         Msaa::Sample4,
