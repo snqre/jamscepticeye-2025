@@ -9,8 +9,13 @@ const TRACKING: f32 = 4.0;  // MORE IS FASTER
 const CAMERA_RELATIVE: Vec3 = Vec3::new(0.0, 0.0, VIEW_WIDTH);  // where the camera is relative to it's look-at spot
 
 #[derive(Resource)]
-pub struct CameraPos{ 
+pub struct CameraPos{
     pub vec2: Vec2
+}
+
+#[derive(Resource)]
+pub struct CameraLeaderEntity {
+    pub entity: Entity
 }
 
 #[derive(Component, Default, Copy, Clone)]
@@ -79,6 +84,7 @@ fn spawn_camera(
         ChildOf(camera_leader)
     ));
     commands.insert_resource(CameraPos{vec2: Vec2::ZERO});
+    commands.insert_resource(CameraLeaderEntity{entity: camera_leader});
 }
 
 fn move_camera(
