@@ -8,6 +8,11 @@ pub const VIEW_WIDTH: f32 = 10.0;  // this controls the width of the screen (in 
 const TRACKING: f32 = 4.0;  // MORE IS FASTER
 const CAMERA_RELATIVE: Vec3 = Vec3::new(0.0, 0.0, VIEW_WIDTH);  // where the camera is relative to it's look-at spot
 
+#[derive(Resource)]
+pub struct CameraPos{ 
+    pub vec2: Vec2
+}
+
 #[derive(Component, Default, Copy, Clone)]
 #[require(CameraCommonComponent)]
 pub struct POVCameraFollower{
@@ -73,13 +78,15 @@ fn spawn_camera(
         POVCamera,
         ChildOf(camera_leader)
     ));
+    commands.insert_resource(CameraPos{vec2: Vec2::ZERO});
 }
 
 fn move_camera(
     mut transform_query: Query<&mut Transform, With<CameraCommonComponent>>,
     leader_query: Query<Entity, With<POVCameraLeader>>,
     follower_query: Query<(Entity, &POVCameraFollower)>,
-    time: Res<Time>
+    time: Res<Time>,
+    mut camera_pos: ResMut<CameraPos>
 ) {
     let leader_entity = if let Ok(e) = leader_query.single() {
         e
@@ -112,4 +119,5 @@ fn move_camera(
     if let Ok(mut t) = transform_query.get_mut(leader_entity) {
         t.translation = new_translation;
     };
+    camera_pos.vec2 = new_translation.xy();
 }

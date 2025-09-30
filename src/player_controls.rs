@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-
-use crate::camera_module::POVCameraFollower;
+use bevy::window::PrimaryWindow;
+use crate::camera_module::{POVCameraFollower, CameraPos, VIEW_WIDTH};
 
 pub const PLAYER_SPEED: f32 = 4.0;
 pub const PLAYER_DEFAULT_POS: Vec3 = Vec3::new(0.0, 0.0, PLAYER_Z);
@@ -8,14 +8,19 @@ pub const PLAYER_Z: f32 = 0.5;
 
 const SPAWN_PLAYER: bool = true;  // this specifies if the player-test-sphere is spawned
 const PLAYER_RADIUS: f32 = 0.5;
+const SPAWN_MOUSE_FRIEND: bool = true;
+const FRIEND_RADIUS: f32 = 0.125;
 
 #[derive(Component)]
 pub struct PlayerMarker;
 
+#[derive(Component)]
+pub struct FollowsMouse;
+
 #[derive(Resource)]
 pub struct PlayerMotion {
-    velocity: Vec2,
-    translation: Vec2
+    pub velocity: Vec2,
+    pub translation: Vec2
 } impl PlayerMotion {
     fn new() -> Self {
         Self {
@@ -25,11 +30,18 @@ pub struct PlayerMotion {
     }
 }
 
+#[derive(Resource)]
+pub struct MousePos {
+    pub translation2d: Vec2
+}
+
 pub struct PlayerControlsPlugin;
 impl Plugin for PlayerControlsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, player_setup);
         app.add_systems(PreUpdate, player_movement);
+        app.add_systems(PreUpdate, mouse_translocator);
+        app.add_systems(PreUpdate, update_mouse_followers.after(mouse_translocator));
     }
 }
 
@@ -72,6 +84,7 @@ fn player_setup(
     mut materials: ResMut<Assets<StandardMaterial>>
 ) {
     commands.insert_resource(PlayerMotion::new());
+    commands.insert_resource(MousePos{translation2d: Vec2::ZERO});
     if SPAWN_PLAYER {
         commands.spawn((
             Transform::from_translation(PLAYER_DEFAULT_POS),
@@ -80,5 +93,46 @@ fn player_setup(
             MeshMaterial3d(materials.add(StandardMaterial::from_color(Color::linear_rgb(1.0, 0.0, 0.0)))),
             POVCameraFollower::new(1.0)
         ));
+    };
+    if SPAWN_MOUSE_FRIEND {
+        commands.spawn((
+            Transform::from_translation(Vec3::ZERO),
+            Mesh3d(meshes.add(Sphere::new(FRIEND_RADIUS))),
+            MeshMaterial3d(materials.add(StandardMaterial::from_color(Color::linear_rgb(0.0, 0.0, 1.0)))),
+            POVCameraFollower::new(1.0),
+            FollowsMouse
+        ));
+    };
+}
+
+fn mouse_translocator(
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    camera_pos: Res<CameraPos>,
+    mut mouse_pos: ResMut<MousePos>
+) {
+    let result = window_query.single();
+    let window = if let Ok(w) = result {
+        w
+    } else {
+        return;
+    };
+    let window_size = window.size();
+    let ratio = window_size.x / window_size.y;
+    let mut ndc = if let Some(p) = window.cursor_position() {
+        (p / window_size) - 0.5
+    } else {
+        Vec2::ZERO
+    };
+    ndc.y /= -ratio;
+    mouse_pos.translation2d = (ndc * VIEW_WIDTH) + camera_pos.vec2;
+}
+
+fn update_mouse_followers(
+    mouse_pos: Res<MousePos>,
+    follower_query: Query<&mut Transform, With<FollowsMouse>>
+) {
+    for mut transform in follower_query {
+        let z = transform.translation.z;
+        transform.translation = mouse_pos.translation2d.extend(z);
     };
 }
