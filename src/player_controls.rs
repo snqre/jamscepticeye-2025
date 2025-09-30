@@ -9,14 +9,6 @@ pub const PLAYER_Z: f32 = 0.5;
 const SPAWN_PLAYER: bool = true;
 const PLAYER_RADIUS: f32 = 0.5;
 
-pub struct PlayerControlsPlugin;
-impl Plugin for PlayerControlsPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Startup, player_setup);
-        app.add_systems(PreUpdate, player_movement);
-    }
-}
-
 #[derive(Component)]
 pub struct PlayerMarker;
 
@@ -30,6 +22,14 @@ pub struct PlayerMotion {
             velocity: Vec2::ZERO,
             translation: PLAYER_DEFAULT_POS.xy()
         }
+    }
+}
+
+pub struct PlayerControlsPlugin;
+impl Plugin for PlayerControlsPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, player_setup);
+        app.add_systems(PreUpdate, player_movement);
     }
 }
 
