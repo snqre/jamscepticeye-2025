@@ -2,7 +2,7 @@ use ::bevy::prelude::*;
 
 const LIGHT_INTENSITY: f32 = 10_000.0;
 const AMBIENT_INTENSITY: f32 = 100.0;  // darken this value for darker shadows
-const LIGHT_TRANSLATION: Vec3 = Vec3::new(1.0, 1.0, 1.0);  // light looks at 0,0,0 so this controls its angle easily
+const LIGHT_TRANSLATION: Vec3 = Vec3::new(1.0, 1.0, 2.0);  // light looks at 0,0,0 so this controls its angle easily
 
 pub struct EnvironmentPlugin;
 impl Plugin for EnvironmentPlugin {
