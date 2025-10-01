@@ -57,7 +57,6 @@ fn foresting_algorithm(
     let max = TILING_RADIUS as f32 * TILE_DIAMETER;
     let mut x = -max;
     let mut y = -max;
-    let mut mmmm = true;
     while x < max {
         while y < max {
             let (r1, r2, r3) = (rng.f32() - 0.5, rng.f32() - 0.5, rng.f32() + 0.5);
