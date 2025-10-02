@@ -1,5 +1,6 @@
 use ::bevy::prelude::*;
 
+mod animal;
 mod camera_module;
 mod player_controls;
 mod debug_scene;
