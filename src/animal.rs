@@ -9,5 +9,7 @@ impl ::bevy::prelude::Plugin for Plugin {
 }
 
 pub fn spawn(mut commands: Commands) {
-    
+    commands.spawn((
+        Transform::from((0.0, 0.0, 0.0))
+    ));
 }
