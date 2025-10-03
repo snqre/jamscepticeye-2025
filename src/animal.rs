@@ -1,6 +1,7 @@
 use super::*;
 
 #[derive(Component)]
+#[require(Transform)]
 pub struct Animal {
     pub position: Vec2,
     pub next_position: Vec2,
