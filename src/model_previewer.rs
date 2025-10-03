@@ -1,0 +1,222 @@
+use bevy::prelude::*;
+use bevy::core_pipeline::bloom::Bloom;
+use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::render::camera::ScalingMode;
+use std::f32::consts::FRAC_PI_2;
+use bevy::input::mouse::{MouseMotion, MouseWheel};
+use bevy::pbr::{NotShadowCaster, NotShadowReceiver};
+
+// CAMERA
+const FOV: f32 = FRAC_PI_2;
+const VIEW_WIDTH: f32 = 10.0;
+const CAMERA_DISTANCE: f32 = 5.0;
+const USE_PERSPECTIVE: bool = true;
+const CAMERA_Z: f32 = 0.0;
+const CAMERA_SPEED: f32 = 0.5;
+const ZOOM_SPEED: f32 = 1.1;
+
+// CHECKERS
+const SPAWN_PLANE: bool = true;
+const SPAWN_GRID: bool = false;
+const TILE_Z: f32 = 0.0;
+const GRID_Z: f32 = -CAMERA_DISTANCE * 2.0;
+const TILING_RADIUS: isize = 4;
+const TILE_DIAMETER: f32 = 1.0;
+const COLORS: [Color; 2] = [
+    Color::linear_rgb(0.8, 0.2, 0.2),
+    Color::linear_rgb(0.2, 0.2, 0.8)
+];
+
+// LIGHT
+const SPAWN_LIGHT: bool = true;
+const LIGHT_POS: Vec3 = Vec3::new(0.0, 0.0, 1.0);
+const LIGHT_BRIGHTNESS: f32 = 1000.0;
+const AMBIENT_LIGHT: f32 = 100.0;
+
+pub struct ModelViewerPlugin;
+impl Plugin for ModelViewerPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, setup);
+        app.add_systems(Update, camera_rotation);
+        app.add_systems(Update, camera_zoom);
+    }
+}
+
+#[derive(Resource)]
+struct RotSums {
+    vec: Vec2
+}
+
+#[derive(Resource)]
+struct CameraZoom{
+    f32: f32
+}
+
+#[derive(Component)]
+struct CameraCenter;
+
+#[derive(Component)]
+struct POVCam;
+
+fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>
+) {
+    // CAMERA
+    commands.insert_resource(RotSums{vec: Vec2::ZERO});
+    let camera_center = commands.spawn((
+       Transform::from_xyz(0.0, 0.0, CAMERA_Z),
+       CameraCenter
+    )).id();
+    let camera = commands.spawn((
+        Camera3d::default(),
+        Camera::default(),
+        Transform::from_translation(Vec3::new(0.0, -CAMERA_DISTANCE, CAMERA_DISTANCE))
+            .looking_at(Vec3::ZERO, Vec3::Y),
+        Tonemapping::AcesFitted,
+        Msaa::Sample4,
+        Bloom::OLD_SCHOOL,
+        ChildOf(camera_center),
+        POVCam
+    )).id();
+    if USE_PERSPECTIVE {
+        commands.insert_resource(CameraZoom{f32: FOV});
+        commands.entity(camera).insert(
+            Projection::Perspective(
+                PerspectiveProjection {
+                    fov: FOV,
+                    ..default()
+                }
+            )
+        );
+    } else {
+        commands.insert_resource(CameraZoom{f32: VIEW_WIDTH});
+        commands.entity(camera).insert(
+            Projection::Orthographic(
+                OrthographicProjection {
+                    scaling_mode: ScalingMode::FixedHorizontal {viewport_width: VIEW_WIDTH },
+                    ..OrthographicProjection::default_3d()
+                }
+            )
+        );
+    };
+
+    // PLANE AND GRID
+    let tile_mesh = meshes.add(Rectangle::from_length(TILE_DIAMETER));
+    let mat_a = materials.add(StandardMaterial::from_color(COLORS[0]));
+    let mat_b = materials.add(StandardMaterial::from_color(COLORS[1]));
+    if SPAWN_PLANE {
+        for xi in -TILING_RADIUS..=TILING_RADIUS {
+            let x = xi as f32 * TILE_DIAMETER;
+            for yi in -TILING_RADIUS..=TILING_RADIUS {
+                let y = yi as f32 * TILE_DIAMETER;
+                let mat = if (xi + yi) % 2 == 0 {
+                    mat_a.clone()
+                } else {
+                    mat_b.clone()
+                };
+                commands.spawn((
+                    Transform::from_xyz(x, y, TILE_Z),
+                    Mesh3d(tile_mesh.clone()),
+                    MeshMaterial3d(mat),
+                    NotShadowCaster
+                ));
+            };
+        };
+    };
+    if SPAWN_GRID {
+        for xi in -TILING_RADIUS..=TILING_RADIUS {
+            let x = xi as f32 * TILE_DIAMETER;
+            for yi in -TILING_RADIUS..=TILING_RADIUS {
+                let y = yi as f32 * TILE_DIAMETER;
+                let mat = if (xi + yi) % 2 == 0 {
+                    mat_a.clone()
+                } else {
+                    mat_b.clone()
+                };
+                commands.spawn((
+                    Transform::from_xyz(x, y, GRID_Z),
+                    Mesh3d(tile_mesh.clone()),
+                    MeshMaterial3d(mat),
+                    NotShadowCaster,
+                    NotShadowReceiver,
+                    ChildOf(camera)
+                ));
+            };
+        };
+    };
+
+    // LIGHTS
+    commands.insert_resource(AmbientLight {color: Color::WHITE, brightness: AMBIENT_LIGHT, ..default()});
+    commands.spawn((
+        DirectionalLight {
+            color: Color::WHITE,
+            illuminance: LIGHT_BRIGHTNESS,
+            shadows_enabled: true,
+            ..default()
+        },
+        Transform::from_translation(LIGHT_POS).looking_at(Vec3::ZERO, Vec3::Y)
+    ));
+}
+
+fn camera_rotation(
+    time: Res<Time>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    mut mouse_motion: EventReader<MouseMotion>,
+    mut center_query: Query<&mut Transform, With<CameraCenter>>,
+    mut rot_sums: ResMut<RotSums>
+) {
+    let mut center_transform = center_query.single_mut().unwrap();
+    if mouse_buttons.pressed(MouseButton::Left) {
+        let mut sum = Vec2::ZERO;
+        for event in mouse_motion.read() {
+            sum += event.delta;
+        };
+        sum *= -(CAMERA_SPEED * time.delta_secs());
+        rot_sums.vec += sum;
+        center_transform.rotation = Quat::from_euler(EulerRot::ZXY, rot_sums.vec.x, rot_sums.vec.y, 0.0);
+    } else {
+        mouse_motion.clear()
+    };
+}
+
+fn camera_zoom(
+    time: Res<Time>,
+    mut mouse_scrolling: EventReader<MouseWheel>,
+    projection_query: Query<Entity, With<POVCam>>,
+    mut camera_zoom: ResMut<CameraZoom>,
+    mut commands: Commands
+) {
+    if mouse_scrolling.is_empty() {
+        return;
+    };
+    for event in mouse_scrolling.read() {
+        if event.y > 0.0 {
+            camera_zoom.f32 /= ZOOM_SPEED;
+        } else if event.y < 0.0 {
+            camera_zoom.f32 *= ZOOM_SPEED;
+        };
+    };
+    let entity = projection_query.single().unwrap();
+    if USE_PERSPECTIVE {
+        commands.entity(entity).insert(
+            Projection::Perspective(
+                PerspectiveProjection {
+                    fov: camera_zoom.f32,
+                    ..default()
+                }
+            )
+        );
+    } else {
+        commands.entity(entity).insert(
+            Projection::Orthographic(
+                OrthographicProjection {
+                    scaling_mode: ScalingMode::FixedHorizontal {viewport_width: camera_zoom.f32 },
+                    ..OrthographicProjection::default_3d()
+                }
+            )
+        );
+    }
+}
