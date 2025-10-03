@@ -11,6 +11,7 @@ const FOV: f32 = FRAC_PI_2;
 const VIEW_WIDTH: f32 = 10.0;
 const CAMERA_DISTANCE: f32 = 5.0;
 const USE_PERSPECTIVE: bool = true;
+const CAMERA_SPEED: f32 = 0.5;
 
 // CHECKERS
 const SPAWN_PLANE: bool = true;
@@ -34,7 +35,13 @@ pub struct ModelViewerPlugin;
 impl Plugin for ModelViewerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup);
+        app.add_systems(Update, camera_rotation);
     }
+}
+
+#[derive(Resource)]
+struct RotSums {
+    vec: Vec2
 }
 
 #[derive(Component)]
@@ -46,10 +53,11 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>
 ) {
     // CAMERA
+    commands.insert_resource(RotSums{vec: Vec2::ZERO});
     let camera_center = commands.spawn((
        Transform::default(),
        CameraCenter
-    ));
+    )).id();
     let camera = commands.spawn((
         Camera3d::default(),
         Camera::default(),
@@ -57,7 +65,8 @@ fn setup(
             .looking_at(Vec3::ZERO, Vec3::Y),
         Tonemapping::AcesFitted,
         Msaa::Sample4,
-        Bloom::OLD_SCHOOL
+        Bloom::OLD_SCHOOL,
+        ChildOf(camera_center)
     )).id();
     if USE_PERSPECTIVE {
         commands.entity(camera).insert(
@@ -137,13 +146,25 @@ fn setup(
     ));
 }
 
-fn camera_controls(
+fn camera_rotation(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut mouse_motion: EventReader<MouseMotion>,
     mouse_scrolling: EventReader<MouseWheel>,
-    camera_query: Query<&mut Transform, With<CameraCenter>>
+    mut center_query: Query<&mut Transform, With<CameraCenter>>,
+    mut rot_sums: ResMut<RotSums>
 ) {
-    
+    let mut center_transform = center_query.single_mut().unwrap();
+    if mouse_buttons.pressed(MouseButton::Left) {
+        let mut sum = Vec2::ZERO;
+        for event in mouse_motion.read() {
+            sum += event.delta;
+        };
+        sum *= -(CAMERA_SPEED * time.delta_secs());
+        rot_sums.vec += sum;
+        center_transform.rotation = Quat::from_euler(EulerRot::ZXY, rot_sums.vec.x, rot_sums.vec.y, 0.0);
+    } else {
+        mouse_motion.clear()
+    };
 }
