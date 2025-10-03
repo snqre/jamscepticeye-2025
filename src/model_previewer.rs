@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::core_pipeline::bloom::Bloom;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::render::camera::ScalingMode;
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
+use std::f32::consts::FRAC_PI_2;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::pbr::{NotShadowCaster, NotShadowReceiver};
 
