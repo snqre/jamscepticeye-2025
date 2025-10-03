@@ -11,7 +11,9 @@ const FOV: f32 = FRAC_PI_2;
 const VIEW_WIDTH: f32 = 10.0;
 const CAMERA_DISTANCE: f32 = 5.0;
 const USE_PERSPECTIVE: bool = true;
+const CAMERA_Z: f32 = 0.0;
 const CAMERA_SPEED: f32 = 0.5;
+const ZOOM_SPEED: f32 = 1.1;
 
 // CHECKERS
 const SPAWN_PLANE: bool = true;
@@ -36,6 +38,7 @@ impl Plugin for ModelViewerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup);
         app.add_systems(Update, camera_rotation);
+        app.add_systems(Update, camera_zoom);
     }
 }
 
@@ -44,8 +47,16 @@ struct RotSums {
     vec: Vec2
 }
 
+#[derive(Resource)]
+struct CameraZoom{
+    f32: f32
+}
+
 #[derive(Component)]
 struct CameraCenter;
+
+#[derive(Component)]
+struct POVCam;
 
 fn setup(
     mut commands: Commands,
@@ -55,7 +66,7 @@ fn setup(
     // CAMERA
     commands.insert_resource(RotSums{vec: Vec2::ZERO});
     let camera_center = commands.spawn((
-       Transform::default(),
+       Transform::from_xyz(0.0, 0.0, CAMERA_Z),
        CameraCenter
     )).id();
     let camera = commands.spawn((
@@ -66,9 +77,11 @@ fn setup(
         Tonemapping::AcesFitted,
         Msaa::Sample4,
         Bloom::OLD_SCHOOL,
-        ChildOf(camera_center)
+        ChildOf(camera_center),
+        POVCam
     )).id();
     if USE_PERSPECTIVE {
+        commands.insert_resource(CameraZoom{f32: FOV});
         commands.entity(camera).insert(
             Projection::Perspective(
                 PerspectiveProjection {
@@ -78,6 +91,7 @@ fn setup(
             )
         );
     } else {
+        commands.insert_resource(CameraZoom{f32: VIEW_WIDTH});
         commands.entity(camera).insert(
             Projection::Orthographic(
                 OrthographicProjection {
@@ -151,7 +165,6 @@ fn camera_rotation(
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut mouse_motion: EventReader<MouseMotion>,
-    mouse_scrolling: EventReader<MouseWheel>,
     mut center_query: Query<&mut Transform, With<CameraCenter>>,
     mut rot_sums: ResMut<RotSums>
 ) {
@@ -167,4 +180,43 @@ fn camera_rotation(
     } else {
         mouse_motion.clear()
     };
+}
+
+fn camera_zoom(
+    time: Res<Time>,
+    mut mouse_scrolling: EventReader<MouseWheel>,
+    projection_query: Query<Entity, With<POVCam>>,
+    mut camera_zoom: ResMut<CameraZoom>,
+    mut commands: Commands
+) {
+    if mouse_scrolling.is_empty() {
+        return;
+    };
+    for event in mouse_scrolling.read() {
+        if event.y > 0.0 {
+            camera_zoom.f32 /= ZOOM_SPEED;
+        } else if event.y < 0.0 {
+            camera_zoom.f32 *= ZOOM_SPEED;
+        };
+    };
+    let entity = projection_query.single().unwrap();
+    if USE_PERSPECTIVE {
+        commands.entity(entity).insert(
+            Projection::Perspective(
+                PerspectiveProjection {
+                    fov: camera_zoom.f32,
+                    ..default()
+                }
+            )
+        );
+    } else {
+        commands.entity(entity).insert(
+            Projection::Orthographic(
+                OrthographicProjection {
+                    scaling_mode: ScalingMode::FixedHorizontal {viewport_width: camera_zoom.f32 },
+                    ..OrthographicProjection::default_3d()
+                }
+            )
+        );
+    }
 }
