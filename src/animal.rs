@@ -1,5 +1,12 @@
 use super::*;
 
+pub struct AnimalPlugin;
+impl Plugin for AnimalPlugin {
+    fn build(&self, app: &mut App) {
+
+    }
+}
+
 #[derive(Component)]
 #[require(Transform)]
 pub struct Animal {
