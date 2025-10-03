@@ -77,7 +77,7 @@ fn spawn_camera(
         ),
         Transform::from_translation(CAMERA_RELATIVE)
             .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
-        // Bloom::OLD_SCHOOL,
+        Bloom::OLD_SCHOOL,
         Tonemapping::AcesFitted,
         Msaa::Sample4,
         POVCamera,
