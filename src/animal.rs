@@ -5,12 +5,32 @@ const ANIMAL_SPHERE_RADIUS: f32 = 0.25;
 const ANIMAL_SPEED: f32 = 1.0;
 const ANIMAL_DISTANCE: f32 = 10.0;
 
+#[derive(Debug)]
+#[derive(Clone)]
+#[derive(Copy)]
+#[derive(PartialEq)]
+#[derive(Eq)]
+#[derive(Component)]
+pub enum Lifecycle {
+    Alive,
+    Corpse
+}
+
+#[derive(Component)]
+pub struct Brain {
+    pub timer: Timer,
+    pub chasing_tree: bool
+}
+
 pub struct AnimalPlugin;
+
 impl Plugin for AnimalPlugin {
     fn build(&self, app: &mut App) {
         // app.add_systems(Update, Animal::sys_find_next_position);
         // app.add_systems(Update, Animal::sys_goto_to_next_position);
         app.add_systems(Update, Animal::animal_move_system);
+        app.add_systems(Update, Animal::seek_death_system);
+        app.add_systems(Update, Animal::check_collision_system);
         app.add_event::<AnimalSpawn>();
         app.add_systems(Startup, setup_animal_assets);
         app.add_systems(Update, animal_spawn_reader.run_if(event_exists!(AnimalSpawn)));
@@ -18,7 +38,7 @@ impl Plugin for AnimalPlugin {
 }
 
 #[derive(Event, Copy, Clone)]
-pub struct AnimalSpawn{
+pub struct AnimalSpawn {
     pos: Vec2
 }
 
@@ -30,6 +50,11 @@ fn animal_spawn_reader(
     for event in event_reader.read() {
         commands.spawn((
             Animal::new(event.pos),
+            Brain {
+                timer: Timer::from_seconds(10.0, TimerMode::Once),
+                chasing_tree: false
+            },
+            Lifecycle::Alive,
             Transform::from_translation(event.pos.extend(ANIMAL_Z)),
             Mesh3d(animal_assets.mesh.clone()),
             MeshMaterial3d(animal_assets.material.clone())
@@ -60,6 +85,7 @@ struct AnimalAssets{
     mesh: Handle<Mesh>,
     material: Handle<StandardMaterial>
 }
+
 #[derive(Component)]
 #[require(Transform)]
 pub struct Animal {
@@ -69,7 +95,6 @@ pub struct Animal {
 }
 
 impl Animal {
-
     pub fn new(pos: Vec2) -> Self {
         Self {
             position: pos,
@@ -136,7 +161,48 @@ impl Animal {
         }
     }
 
+    // When the time is right, the animal will seek a tree to b-line to
+    // and die on.
+    pub fn seek_death_system(mut animals: AnimalQuery, tree_tracker: Res<tree::Tracker>, time: Res<Time>) {
+        for (mut animal, mut brain, lifecycle) in &mut animals {
+            let lifecycle: Lifecycle = *lifecycle;
+            if lifecycle != Lifecycle::Alive {
+                continue
+            }
+            let time_delta = time.delta();
+            brain.timer.tick(time_delta);
+            if brain.chasing_tree {
+                continue
+            }
+            if brain.timer.finished() {
+                if let Some(closest) = tree_tracker.positions
+                    .iter()
+                    .min_by_key(|tree_position| {
+                        let distance = animal.position.distance_squared(**tree_position);
+                        (distance * 1000.0) as u32
+                    }) {
+                    animal.next_position = **closest;
+                    brain.chasing_tree = true;
+                }
+            }
+        }
+    }
+
+    pub fn check_collision_system(mut animals: Query<'a, 'b, (&mut Animal, &mut Brain, &mut Lifecycle)>, tree_tracker: Res<tree::Tracker>) {
+        for (animal, brain, mut lifecycle) in &mut animals {
+            if !brain.chasing_tree {
+                continue
+            }
+            if tree_tracker.positions.iter().any(|tree_position| {
+                animal.position.distance_squared(**tree_position) < 0.1
+            }) {
+                *lifecycle = Lifecycle::Corpse;
+            }
+        }
+    }    
 }
+
+type AnimalQuery<'a, 'b> = Query<'a, 'b, (&mut Animal, &mut Brain, &Lifecycle)>;
 
 // impl ::bevy::prelude::Plugin for Animal {
 //     fn build(&self, app: &mut App) {

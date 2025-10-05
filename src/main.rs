@@ -8,6 +8,9 @@ mod camera_module;
 mod player_controls;
 mod debug_scene;
 mod environment;
+mod tree;
+// mod model_previewer;
+// mod assets;
 mod assets;
 
 fn main() {
