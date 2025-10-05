@@ -5,15 +5,6 @@ use super::*;
 pub struct Tree;
 
 
-// === Tracker ===
-
-#[derive(Default)]
-#[derive(Resource)]
-pub struct Tracker {
-    pub positions: Vec<Vec2>
-}
-
-
 // === Spawn System ===
 
 pub struct SpawnSystem {
