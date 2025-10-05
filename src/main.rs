@@ -1,13 +1,14 @@
 use ::bevy::prelude::*;
 
+// mod model_previewer;
+
 mod macros;
 mod animal;
 mod camera_module;
 mod player_controls;
 mod debug_scene;
 mod environment;
-// mod model_previewer;
-// mod assets;
+mod assets;
 
 fn main() {
     App::new()
@@ -18,5 +19,6 @@ fn main() {
         .add_plugins(environment::EnvironmentPlugin)
         .add_plugins(debug_scene::DebugScenePlugin)
         .add_plugins(animal::AnimalPlugin)
+        .add_plugins(assets::HomegrownAssetsPlugin)
         .run();
 }
