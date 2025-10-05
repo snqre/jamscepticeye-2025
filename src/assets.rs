@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use crate::event_exists;
 
 mod hoppy_cube;
-mod animations;
 
 #[derive(Event, Copy, Clone)]  // for spawning props directly
 pub struct PropSpawn {
@@ -150,6 +149,9 @@ pub struct MotionTracker {
             self.moving = !self.moving;
             self.time = 0.0;
         };
+    }
+    pub fn reset(&mut self) {
+        self.time = 0.0;
     }
     pub fn kill(&mut self) {
         self.alive = false;
