@@ -9,7 +9,6 @@ mod common;
 mod player_controls;
 mod debug_scene;
 mod environment;
-mod player;
 mod tree;
 // mod model_previewer;
 // mod assets;
