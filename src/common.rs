@@ -1,5 +1,9 @@
 use super::*;
 
+// === Random Spawn System ===
+// NOTE: Generic system that randomly spawns `T: Bundle` across
+//       a world with a predefined `w: f32` and `h: f32`.
+
 pub trait RandomSpawnEntityConstructor {
     type Bundle: Bundle;
 
