@@ -1,5 +1,13 @@
 use super::*;
 
+pub struct Plugin;
+
+impl ::bevy::prelude::Plugin for Plugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, |world: &mut World| common::RandomSpawnSystem::<Tree>::on_startup(world));
+    }
+}
+
 #[derive(Component)]
 #[require(Transform)]
 pub struct Tree;
@@ -11,12 +19,4 @@ impl common::RandomSpawnEntityConstructor for Tree {
         Self,
         position.into()
     )}
-}
-
-pub struct Plugin;
-
-impl ::bevy::prelude::Plugin for Plugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Startup, |world: &mut World| common::RandomSpawnSystem::<Tree>::on_startup(world));
-    }
 }
