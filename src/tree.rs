@@ -1,75 +1,76 @@
 use super::*;
 
-/// Trees spawn just outside of this radius to create an illution of the
-/// trees already existing.
-const PLAYER_VIEW_RADIUS: f32 = 10.0;
+#[derive(Component)]
+#[require(Transform)]
+pub struct Tree;
 
-const SPAWN_DISTANCE: f32 = 12.0;
 
-/// The maximum number of trees to attempt to spawn per system call.
-/// Not all attempts result in a successful spawn due to spacing checks.
-const COUNT: usize = 8;
+// === Tracker ===
 
-const MIN_SPACING: f32 = 2.0;
-
-/// Track all trees to avoid collision but also to be able to check for
-/// any nearby trees from the animal system and go ahead to bonk on it
-/// and die.
 #[derive(Default)]
 #[derive(Resource)]
 pub struct Tracker {
     pub positions: Vec<Vec2>
 }
 
-#[derive(Component)]
-#[require(Transform)]
-pub struct Tree;
 
-impl Tree {
+// === Spawn System ===
 
-    pub fn startup_spawn_system(mut commands: Commands, mut tracker: ResMut<Tracker>, player_motion: Res<player_controls::PlayerMotion>) {
-        Self::spawn(&mut commands, &mut tracker, player_motion.translation);
+pub struct SpawnSystem {
+    pub world_w: f32,
+    pub world_h: f32,
+    pub count: usize,
+    pub min_spacing: f32,
+    pub max_attempts: usize
+}
+
+impl SpawnSystem {
+    pub fn on_startup(mut commands: Commands) {
+        let model: Self = Self {
+            world_w: WORLD_W,
+            world_h: WORLD_H,
+            count: 200,
+            min_spacing: 20.0,
+            max_attempts: 256
+        };
+        for position in model.simulate() {
+            let position: Vec3 = position.into();
+            commands.spawn((
+                Tree,
+                Transform::from_translation(position)
+            ));
+        }
     }
+}
 
-    // Called every update frame ... sorry, there's a better way to optimize this
-    // but we won't have time to get to all the other important systems if we
-    // write good code here. If its lagging the game, will fix.
-    pub fn spawn_system(mut commands: Commands, mut tracker: ResMut<Tracker>, player_motion: Res<player_controls::PlayerMotion>) {
-        Self::spawn(&mut commands, &mut tracker, player_motion.translation);
-    }
-
-    fn spawn(commands: &mut Commands, tracker: &mut ResMut<Tracker>, center: Vec2) {
-        let mut new_positions: Vec<Vec2> = Vec::new();
-        for _ in 0..COUNT {
-            let angle: f32 = ::fastrand::f32() * ::std::f32::consts::TAU;
-            let angle_cos: f32 = angle.cos();
-            let angle_sin: f32 = angle.sin();
-            let offset: Vec2 = Vec2::new(angle_cos, angle_sin) * SPAWN_DISTANCE;
-            let position: Vec2 = center + offset;
-            if tracker.positions.iter().any(|existing| {
-                let existing: Vec2 = *existing;
-                existing.distance(position) < MIN_SPACING
+impl Model for SpawnSystem {
+    type Output = Vec<Vec2>;
+    
+    fn simulate(self) -> Self::Output {
+        let mut positions: Vec<Vec2> = Vec::new();
+        for _ in 0..self.max_attempts {
+            let x: f32 = ::fastrand::f32() * self.world_w;
+            let y: f32 = ::fastrand::f32() * self.world_h;
+            let next: Vec2 = (x, y).into();
+            if positions.iter().any(|position| {
+                position.distance(next) < self.min_spacing
             }) {
                 continue
             }
-            let position_as_vec3: Vec3 = position.extend(0.0);
-            commands.spawn((
-                Self,
-                Transform::from_translation(position_as_vec3)
-            ));
-            new_positions.push(position);
+            positions.push(next);
         }
-        tracker.positions.extend(new_positions);
+        positions
     }
 }
+
+
+// === Plugin ===
 
 pub struct Plugin;
 
 impl ::bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<Tracker>()
-            .add_systems(Startup, Tree::startup_spawn_system)
-            .add_systems(Update, Tree::spawn_system);
+        app.init_resource::<Tracker>();
+        app.add_systems(Startup, SpawnSystem::on_startup);
     }
 }

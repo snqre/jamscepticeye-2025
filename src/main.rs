@@ -13,6 +13,15 @@ mod tree;
 // mod assets;
 mod assets;
 
+const WORLD_W: f32 = 0.0;
+const WORLD_H: f32 = 0.0;
+
+trait Model {
+    type Output;
+
+    fn simulate(self) -> Self::Output;
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -23,5 +32,6 @@ fn main() {
         .add_plugins(debug_scene::DebugScenePlugin)
         .add_plugins(animal::AnimalPlugin)
         .add_plugins(assets::HomegrownAssetsPlugin)
+        .add_plugins(tree::Plugin)
         .run();
 }

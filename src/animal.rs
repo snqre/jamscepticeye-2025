@@ -13,6 +13,8 @@ const ANIMAL_DISTANCE: f32 = 10.0;
 #[derive(Component)]
 pub enum Lifecycle {
     Alive,
+
+    // When it hits a tree it will go into the corpse state.
     Corpse
 }
 
