@@ -302,7 +302,13 @@ impl DeathSystem {
                     tracker.lifecycle = DeathLifecycle::Ramming(lifecycle);
                 },
                 DeathLifecycle::Ramming(ramming_lifecycle) => {
-                    
+                    let direction: Vec2 = (ramming_lifecycle.to - position).normalize_or_zero();
+                    let motion_delta: Vec2 = direction * SPEED * delta;
+                    let position: Vec2 = position + motion_delta;
+                    transform.translation = position.into();
+                    if position.distance(ramming_lifecycle.to) < 0.5 {
+                        tracker.lifecycle = DeathLifecycle::Corpse;
+                    }
                 }
             }
         }
@@ -326,7 +332,7 @@ impl Model for DeathSystem {
             .min_by(|x, y| {
                 let dx: f32 = x.distance_squared(position);
                 let dy: f32 = y.distance_squared(position);
-                dx.partial_cmp(&dy).unwrap_or(::std::cmp::Ordering::Equal);
+                dx.partial_cmp(&dy).unwrap_or(::std::cmp::Ordering::Equal)
             })
             .unwrap_or(position)
     }
