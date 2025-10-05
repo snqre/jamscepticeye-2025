@@ -5,13 +5,24 @@ use ::bevy::prelude::*;
 mod macros;
 mod animal;
 mod camera_module;
+mod common;
 mod player_controls;
 mod debug_scene;
 mod environment;
+mod player;
 mod tree;
 // mod model_previewer;
 // mod assets;
 mod assets;
+
+const WORLD_W: f32 = 0.0;
+const WORLD_H: f32 = 0.0;
+
+trait Model {
+    type Output;
+
+    fn simulate(self) -> Self::Output;
+}
 
 fn main() {
     App::new()
@@ -21,7 +32,8 @@ fn main() {
         .add_plugins(player_controls::PlayerControlsPlugin)
         .add_plugins(environment::EnvironmentPlugin)
         .add_plugins(debug_scene::DebugScenePlugin)
-        .add_plugins(animal::AnimalPlugin)
+        .add_plugins(animal::Plugin)
         .add_plugins(assets::HomegrownAssetsPlugin)
+        .add_plugins(tree::Plugin)
         .run();
 }
