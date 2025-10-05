@@ -6,6 +6,8 @@ pub const SPEED: f32 = 1.0;
 pub const DISTANCE: f32 = 10.0;
 pub const MIN_MOTION_SLEEP_SECONDS: f32 = 10.0;
 pub const MAX_MOTION_SLEEP_SECONDS: f32 = 30.0;
+pub const MIN_DEATH_TIMEOUT_SECONDS: f32 = 60.0;
+pub const MAX_DEATH_TIMEOUT_SECONDS: f32 = 120.0;
 
 pub struct Plugin;
 
@@ -21,7 +23,6 @@ impl ::bevy::prelude::Plugin for Plugin {
 }
 
 #[derive(Component)]
-#[require(Transform)]
 pub struct Animal;
 
 impl common::RandomSpawnEntityConstructor for Animal {
@@ -53,8 +54,8 @@ impl common::RandomSpawnEntityConstructor for Animal {
 // THIS IS TEMPORARY UNTIL PROPS ARE DONE
 #[derive(Resource)]
 pub struct Asset {
-    mesh: Handle<Mesh>,
-    material: Handle<StandardMaterial>
+    pub mesh: Handle<Mesh>,
+    pub material: Handle<StandardMaterial>
 }
 
 pub struct AssetSystem;
@@ -88,7 +89,7 @@ impl AssetSystem {
 #[derive(Clone)]
 #[derive(Copy)]
 pub struct SpawnEvent {
-    position: Vec2
+    pub position: Vec2
 }
 
 pub struct SpawnEventSystem;
@@ -101,7 +102,7 @@ impl SpawnEventSystem {
             let material: Handle<StandardMaterial> = asset.material.to_owned();
             commands.spawn((
                 Animal,
-                Tranform::from_translation(position),
+                Transform::from_translation(position),
                 Mesh3d(mesh),
                 MeshMaterial3d(material)
             ));
@@ -114,32 +115,38 @@ impl SpawnEventSystem {
 // This system is responsible for the animals randomly picking
 // a spot, and moving to it.
 
-pub struct MotionLifecycle {
-    from: Vec2,
-    to: Vec2,
-    progress: f32
+pub struct InMotionLifecycle {
+    pub from: Vec2,
+    pub to: Vec2,
+    pub progress: f32
 }
 
 #[derive(Default)]
-pub enum MotionSensor {
+pub enum MotionLifecycle {
     #[default]
     Idle,
-    InMotion(MotionLifecycle),
+    InMotion(InMotionLifecycle),
     Shutdown,
 }
 
 #[derive(Component)]
 #[derive(Default)]
 pub struct MotionTracker {
-    pub sensor: MotionSensor,
+    pub lifecycle: MotionLifecycle,
     pub cooldown: f32
+}
+
+impl MotionTracker {
+    pub fn random_cooldown() -> f32 {
+        MIN_MOTION_SLEEP_SECONDS + fastrand::f32() * (MAX_MOTION_SLEEP_SECONDS - MIN_MOTION_SLEEP_SECONDS)
+    }
 }
 
 impl Default for MotionTracker {
     fn default() -> Self {
         Self {
-            sensor: MotionSensor::default(),
-            cooldown: MIN_MOTION_SLEEP_SECONDS + ::fastrand::f32() * MAX_MOTION_SLEEP_SECONDS
+            lifecycle: MotionLifecycle::default(),
+            cooldown: Self::random_cooldown()
         }
     }
 }
@@ -153,19 +160,19 @@ pub struct MotionSystem {
 }
 
 impl MotionSystem {
-    pub fn on_update(mut animals: Query<(&mut Transform, &mut MotionTracker)>, time: Res<Time>) {
+    pub fn on_update(mut animals: Query<(&mut Transform, &mut MotionTracker, &mut Animal)>, time: Res<Time>) {
         let world_w: f32 = WORLD_W;
         let world_h: f32 = WORLD_H;
         let delta: f32 = time.delta_secs();
         let speed: f32 = SPEED;
         let distance: f32 = DISTANCE;
-        for (mut transform, mut tracker) in animals.iter_mut() {
+        for (mut transform, mut tracker, _) in animals.iter_mut() {
             let position: Vec2 = transform.translation.truncate();
-            match &mut tracker.sensor {
-                MotionSensor::Shutdown => {},
-                MotionSensor::Idle => {
+            match &mut tracker.lifecycle {
+                MotionLifecycle::Shutdown => {},
+                MotionLifecycle::Idle => {
                     if tracker.cooldown > 0.0 {
-                        tracker.cooldown -= delta;
+                        tracker.cooldown = (tracker.cooldown - delta).max(0.0);
                         continue
                     }
                     let x: f32 = position.x;
@@ -178,21 +185,21 @@ impl MotionSystem {
                         distance
                     };
                     let (x, y) = model.simulate();
-                    let lifecycle: MotionLifecycle = MotionLifecycle {
+                    let lifecycle: InMotionLifecycle = InMotionLifecycle {
                         from: position,
                         to: (x, y).into(),
                         progress: 0.0
                     };
-                    tracker.sensor = MotionSensor::InMotion(lifecycle);
+                    tracker.lifecycle = MotionLifecycle::InMotion(lifecycle);
                 },
-                MotionSensor::InMotion(lifecycle) => {
+                MotionLifecycle::InMotion(lifecycle) => {
                     lifecycle.progress += delta * speed;
                     let t: f32 = lifecycle.progress.clamp(0.0, 1.0);
                     let t_eased: f32 = (t * ::std::f32::consts::PI).sin();
                     transform.translation = lifecycle.from.lerp(*lifecycle.to, t_eased).into();
                     if t >= 1.0 {
-                        tracker.sensor = MotionSensor::Idle;
-                        tracker.cooldown = MIN_MOTION_SLEEP_SECONDS + ::fastrand::f32() * MAX_MOTION_SLEEP_SECONDS;
+                        tracker.lifecycle = MotionLifecycle::Idle;
+                        tracker.cooldown = MotionTracker::random_cooldown();
                     }
                 }
             }
@@ -210,5 +217,82 @@ impl Model for MotionSystem {
         let new_x: f32 = (self.x + offset_x).clamp(0.0, self.world_w);
         let new_y: f32 = (self.y + offset_y).clamp(0.0, self.world_h);
         (new_x, new_y)
+    }
+}
+
+
+// === Death System ===
+// NOTE After timeout the animal will stop motion and ram directly into the
+//      nearest tree.
+
+pub struct DeathRammingLifecycle {
+    pub from: Vec2,
+    pub to: Vec2
+}
+
+#[derive(Default)]
+pub enum DeathLifecycle {
+    #[default]
+    Alive,
+    Ramming(DeathRammingLifecycle),
+    Corpse
+}
+
+#[derive(Component)]
+pub struct DeathTracker {
+    pub lifecycle: DeathLifecycle,
+    pub timeout: f32
+}
+
+impl DeathTracker {
+    pub fn random_timeout() -> f32 {
+        MIN_DEATH_TIMEOUT_SECONDS + ::fastrand::f32() * (MAX_DEATH_TIMEOUT_SECONDS - MIN_DEATH_TIMEOUT_SECONDS)
+    }
+}
+
+impl Default for DeathTracker {
+    fn default() -> Self {
+        Self {
+            lifecycle: DeathLifecycle::default(),
+            timeout: Self::random_timeout()
+        }
+    }
+}
+
+pub struct DeathSystem {
+    x: f32,
+    y: f32,
+    tree_positions: Vec<(f32, f32)>
+}
+
+impl DeathSystem {
+    pub fn on_update(mut animals: Query<(&mut Transform, &mut DeathTracker, &mut Animal)>, mut trees: Query<(&mut Transform, &mut tree::Tree)>, time: Res<Time>) {
+        let delta: f32 = time.delta_secs();
+        for (mut transform, mut tracker, _) in animals.iter_mut() {
+            let position: Vec2 = transform.translation.truncate();
+            match &mut tracker.lifecycle {
+                DeathLifecycle::Corpse => {},
+                DeathLifecycle::Alive => {
+                    tracker.timeout -= delta;
+                    if tracker.timeout > 0.0 {
+                        tracker.lifecycle = DeathLifecycle::Corpse;
+                        continue
+                    }
+                    if let Some(target) = 
+                },
+                DeathLifecycle::Ramming(ramming_lifecycle) => {
+
+                }
+            }
+        }
+    }
+}
+
+impl Model for DeathSystem {
+    type Output = Vec2;
+
+    // Determines the closest tree to ram into.
+    fn simulate(self) -> Self::Output {
+        
     }
 }
