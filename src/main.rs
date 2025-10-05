@@ -5,9 +5,11 @@ use ::bevy::prelude::*;
 mod macros;
 mod animal;
 mod camera_module;
+mod common;
 mod player_controls;
 mod debug_scene;
 mod environment;
+mod player;
 mod tree;
 // mod model_previewer;
 // mod assets;
@@ -30,7 +32,7 @@ fn main() {
         .add_plugins(player_controls::PlayerControlsPlugin)
         .add_plugins(environment::EnvironmentPlugin)
         .add_plugins(debug_scene::DebugScenePlugin)
-        .add_plugins(animal::AnimalPlugin)
+        .add_plugins(animal::Plugin)
         .add_plugins(assets::HomegrownAssetsPlugin)
         .add_plugins(tree::Plugin)
         .run();
