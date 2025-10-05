@@ -4,6 +4,8 @@ pub const SPHERE_RADIUS: f32 = 0.25;
 pub const Z: f32 = 0.0;
 pub const SPEED: f32 = 1.0;
 pub const DISTANCE: f32 = 10.0;
+pub const MIN_MOTION_SLEEP_SECONDS: f32 = 10.0;
+pub const MAX_MOTION_SLEEP_SECONDS: f32 = 30.0;
 
 pub struct Plugin;
 
@@ -23,7 +25,13 @@ impl ::bevy::prelude::Plugin for Plugin {
 pub struct Animal;
 
 impl common::RandomSpawnEntityConstructor for Animal {
-    type Bundle = (Self, Transform, Mesh3d, MeshMaterial3d<StandardMaterial>);
+    type Bundle = (
+        Self, 
+        Transform, 
+        MotionTracker,
+        Mesh3d, 
+        MeshMaterial3d<StandardMaterial>
+    );
 
     fn new(world: &World, position: Vec3) -> Self::Bundle {
         let asset: &Asset = world.get_resource::<Asset>().expect("`animal::Asset` not initialized.");
@@ -32,6 +40,7 @@ impl common::RandomSpawnEntityConstructor for Animal {
         {(
             Self,
             position.into(),
+            MotionTracker::default(),
             Mesh3d(mesh),
             MeshMaterial3d(material)
         )}
@@ -111,15 +120,28 @@ pub struct MotionLifecycle {
     progress: f32
 }
 
+#[derive(Default)]
 pub enum MotionSensor {
-    Shutdown,
+    #[default]
     Idle,
-    InMotion(MotionLifecycle)
+    InMotion(MotionLifecycle),
+    Shutdown,
 }
 
 #[derive(Component)]
+#[derive(Default)]
 pub struct MotionTracker {
-    pub sensor: MotionSensor
+    pub sensor: MotionSensor,
+    pub cooldown: f32
+}
+
+impl Default for MotionTracker {
+    fn default() -> Self {
+        Self {
+            sensor: MotionSensor::default(),
+            cooldown: MIN_MOTION_SLEEP_SECONDS + ::fastrand::f32() * MAX_MOTION_SLEEP_SECONDS
+        }
+    }
 }
 
 pub struct MotionSystem {
@@ -142,6 +164,10 @@ impl MotionSystem {
             match &mut tracker.sensor {
                 MotionSensor::Shutdown => {},
                 MotionSensor::Idle => {
+                    if tracker.cooldown > 0.0 {
+                        tracker.cooldown -= delta;
+                        continue
+                    }
                     let x: f32 = position.x;
                     let y: f32 = position.y;
                     let model: Self = Self {
@@ -160,12 +186,13 @@ impl MotionSystem {
                     tracker.sensor = MotionSensor::InMotion(lifecycle);
                 },
                 MotionSensor::InMotion(lifecycle) => {
-                    *lifecycle += delta * speed;
+                    lifecycle.progress += delta * speed;
                     let t: f32 = lifecycle.progress.clamp(0.0, 1.0);
                     let t_eased: f32 = (t * ::std::f32::consts::PI).sin();
                     transform.translation = lifecycle.from.lerp(*lifecycle.to, t_eased).into();
                     if t >= 1.0 {
                         tracker.sensor = MotionSensor::Idle;
+                        tracker.cooldown = MIN_MOTION_SLEEP_SECONDS + ::fastrand::f32() * MAX_MOTION_SLEEP_SECONDS;
                     }
                 }
             }
