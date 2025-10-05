@@ -4,9 +4,9 @@ use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::render::camera::ScalingMode;
 use bevy::transform::systems::propagate_parent_transforms;
 
-pub const VIEW_WIDTH: f32 = 100.0;  // this controls the width of the screen (in world-units)
+pub const VIEW_WIDTH: f32 = 10.0;  // this controls the width of the screen (in world-units)
 const TRACKING: f32 = 4.0;  // MORE IS FASTER
-const CAMERA_RELATIVE: Vec3 = Vec3::new(0.0, 0.0, VIEW_WIDTH);  // where the camera is relative to it's look-at spot
+const CAMERA_RELATIVE: Vec3 = Vec3::new(0.0, -VIEW_WIDTH, VIEW_WIDTH);  // where the camera is relative to it's look-at spot
 
 #[derive(Resource)]
 pub struct CameraPos{
@@ -123,7 +123,11 @@ fn move_camera(
     let delta = camera_goal - leader_translation;
     let new_translation = delta * (TRACKING * time.delta_secs()) + leader_translation;
     if let Ok(mut t) = transform_query.get_mut(leader_entity) {
-        t.translation = new_translation;
+        if delta.abs().element_sum() < 1.0/128.0 {
+            t.translation = camera_goal
+        } else {
+            t.translation = new_translation;
+        }
     };
     camera_pos.vec2 = new_translation.xy();
 }

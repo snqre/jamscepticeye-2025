@@ -1,10 +1,11 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use crate::camera_module::{POVCameraFollower, CameraPos, VIEW_WIDTH};
+use crate::assets::PropIOU;
 
 pub const PLAYER_SPEED: f32 = 4.0;
 pub const PLAYER_DEFAULT_POS: Vec3 = Vec3::new(0.0, 0.0, PLAYER_Z);
-pub const PLAYER_Z: f32 = 0.5;
+pub const PLAYER_Z: f32 = 0.0;
 
 const SPAWN_PLAYER: bool = true;  // this specifies if the player-test-sphere is spawned
 const PLAYER_RADIUS: f32 = 0.5;
@@ -89,18 +90,20 @@ fn player_setup(
         commands.spawn((
             Transform::from_translation(PLAYER_DEFAULT_POS),
             PlayerMarker,
-            Mesh3d(meshes.add(Sphere::new(PLAYER_RADIUS))),
-            MeshMaterial3d(materials.add(StandardMaterial::from_color(Color::linear_rgb(1.0, 0.0, 0.0)))),
-            POVCameraFollower::new(1.0)
+            // Mesh3d(meshes.add(Sphere::new(PLAYER_RADIUS))),
+            // MeshMaterial3d(materials.add(StandardMaterial::from_color(Color::linear_rgb(1.0, 0.0, 0.0)))),
+            POVCameraFollower::new(1.0),
+            PropIOU::HoppyCube
         ));
     };
     if SPAWN_MOUSE_FRIEND {
         commands.spawn((
-            Transform::from_translation(Vec3::ZERO),
+            Transform::from_translation(Vec3::ZERO).with_scale(Vec3::ONE * 0.25),
             Mesh3d(meshes.add(Sphere::new(FRIEND_RADIUS))),
             MeshMaterial3d(materials.add(StandardMaterial::from_color(Color::linear_rgb(0.0, 0.0, 1.0)))),
             POVCameraFollower::new(1.0),
-            FollowsMouse
+            FollowsMouse,
+            PropIOU::HoppyCube
         ));
     };
 }
