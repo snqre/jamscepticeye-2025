@@ -268,6 +268,15 @@ pub struct DeathSystem {
 impl DeathSystem {
     pub fn on_update(mut animals: Query<(&mut Transform, &mut DeathTracker, &mut Animal)>, mut trees: Query<(&mut Transform, &mut tree::Tree)>, time: Res<Time>) {
         let delta: f32 = time.delta_secs();
+        let tree_positions: Vec<(f32, f32)> = trees
+            .iter()
+            .map(|(transform, _)| {
+                let position: Vec2 = transform.translation.truncate();
+                let x: f32 = position.x;
+                let y: f32 = position.y;
+                (x, y)
+            })
+            .collect();
         for (mut transform, mut tracker, _) in animals.iter_mut() {
             let position: Vec2 = transform.translation.truncate();
             match &mut tracker.lifecycle {
@@ -278,10 +287,22 @@ impl DeathSystem {
                         tracker.lifecycle = DeathLifecycle::Corpse;
                         continue
                     }
-                    if let Some(target) = 
+                    let x: f32 = position.x;
+                    let y: f32 = position.y;
+                    let model: Self = Self {
+                        x,
+                        y,
+                        tree_positions: tree_positions.to_owned()
+                    };
+                    let target: Vec2 = model.simulate();
+                    let lifecycle: DeathRammingLifecycle = DeathRammingLifecycle {
+                        from: position,
+                        to: target
+                    };
+                    tracker.lifecycle = DeathLifecycle::Ramming(lifecycle);
                 },
                 DeathLifecycle::Ramming(ramming_lifecycle) => {
-
+                    
                 }
             }
         }
@@ -293,6 +314,20 @@ impl Model for DeathSystem {
 
     // Determines the closest tree to ram into.
     fn simulate(self) -> Self::Output {
-        
+        let position: Vec2 = (self.x, self.y).into();
+        let tree_positions: Vec<Vec2> = self.tree_positions
+            .iter()
+            .map(|(x, y)| {
+                (x, y).into()
+            })
+            .collect();
+        tree_positions
+            .into_iter()
+            .min_by(|x, y| {
+                let dx: f32 = x.distance_squared(position);
+                let dy: f32 = y.distance_squared(position);
+                dx.partial_cmp(&dy).unwrap_or(::std::cmp::Ordering::Equal);
+            })
+            .unwrap_or(position)
     }
 }
